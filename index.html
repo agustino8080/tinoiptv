@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TINOTV</title>
+    <!-- Estilos CSS -->
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-image: url('https://t3.ftcdn.net/jpg/02/65/84/84/360_F_265848464_FKHf4E1tTxVEw4I261TeBOeXzjrmn8xt.jpg'); /* Imagen de fondo */
+            background-size: cover;
+            background-position: center;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7); /* Fondo semi-transparente */
+            border-radius: 10px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .upload-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .external-url-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .channels {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            gap: 20px;
+        }
+        .channel {
+            flex: 1 1 20%;
+            max-width: 200px;
+            text-align: center;
+            background-color: #333;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .channel img {
+            max-width: 100%;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+        .favorite {
+            color: gold;
+            cursor: pointer;
+        }
+        .video-player {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            display: none;
+            background-color: black;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.5);
+            max-width: 80%; /* Ancho máximo del reproductor */
+            max-height: 80%; /* Alto máximo del reproductor */
+            overflow: hidden; /* Evitar desbordamiento */
+        }
+        .video-player video {
+            width: 100%; /* Ancho del video responsivo */
+            height: auto; /* Altura automática para mantener la relación de aspecto */
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            color: white;
+            font-size: 20px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 10px 0;
+            background-color: #222;
+        }
+        footer p {
+            margin: 5px 0;
+        }
+        .widget-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .favorites-container {
+            margin-top: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .favorites-header {
+            cursor: pointer;
+            background-color: #444;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .favorites-list {
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .group {
+            margin-top: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .category-select {
+            width: 100%;
+            padding: 5px;
+            margin-top: 10px;
+        }
+        .status-message {
+            color: lime;
+            text-align: center;
+            margin-top: 10px;
+            display: none; /* Oculto por defecto */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TINOTV</h1>
+
+        <div class="upload-container">
+            <label for="file-upload" class="custom-file-upload">
+                <input type="file" id="file-upload" accept=".m3u" />
+                Subir archivo M3U
+            </label>
+        </div>
+
+        <div class="external-url-container">
+            <input type="text" id="external-url" placeholder="Agregar URL externa" />
+            <select id="category-select" class="category-select">
+                <option value="">Seleccione una categoría</option>
+                <option value="país">País</option>
+                <option value="deporte">Deporte</option>
+                <option value="vod">VOD</option>
+                <option value="series">Series</option>
+                <option value="noticias">Noticias</option>
+                <option value="entretenimiento">Entretenimiento</option>
+            </select>
+            <button id="add-url-button">Agregar URL</button>
+            <div class="status-message" id="status-message">Página insertada</div>
+        </div>
+
+        <div class="channels" id="channels-container"></div>
+
+        <div class="favorites-container">
+            <div class="favorites-header" onclick="toggleFavorites()">Canales Favoritos</div>
+            <div class="favorites-list" id="favorites-list"></div>
+        </div>
+    </div>
+
+    <div class="video-player" id="video-player">
+        <span class="close-button" onclick="closeVideo()">X</span>
+        <h2 id="channel-name"></h2>
+        <video id="video" controls autoplay></video>
+    </div>
+
+    <div class="widget-container">
+        <div id="visitor-counter"></div>
+        <div id="whatsapp-widget">
+            <a href="https://wa.me/tu_numero_de_whatsapp" target="_blank">
+                <img src="ruta_a_tu_imagen_de_whatsapp" alt="Contáctanos en WhatsApp" style="width: 50px; height: 50px;">
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; <span id="year"></span> Agustín Pizarro</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement-and-player.min.js"></script>
+    <script>
+        const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Configura el año dinámico
+            document.getElementById('year').textContent = new Date().getFullYear();
+
+            // Contador de visitantes (ejemplo simple, en producción usar un servicio real)
+            let visitorCount = localStorage.getItem('visitorCount') || 0;
+            visitorCount++;
+            localStorage.setItem('visitorCount', visitorCount);
+            document.getElementById('visitor-counter').innerHTML = '<p>Visitantes: ' + visitorCount + '</p>';
+
+            // Cargar favoritos desde el almacenamiento local
+            loadFavorites();
+
+            // Lógica para agregar URL externa
+            document.getElementById('add-url-button').addEventListener('click', function () {
+                const url = document.getElementById('external-url').value;
+                const category = document.getElementById('category-select').value;
+
+                if (url && category) {
+                    checkIfUrlIsOnline(url, function(isOnline) {
+                        if (isOnline) {
+                            const channelName = 'Canal Externo ' + (document.getElementById('channels-container').children.length + 1);
+                            const channelDiv = document.createElement('div');
+                            channelDiv.className = 'channel';
+                            channelDiv.innerHTML = `
+                                <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${channelName}" onclick="playVideo('${url.trim()}', '${channelName}')">
+                                <p>${channelName} <span class="favorite" onclick="toggleFavorite(event, '${channelName}', '${url}', '${category}')">★</span></p>
+                            `;
+                            document.getElementById('channels-container').appendChild(channelDiv);
+                            document.getElementById('status-message').style.display = 'block'; // Mostrar mensaje
+                            setTimeout(() => {
+                                document.getElementById('status-message').style.display = 'none'; // Ocultar mensaje después de 3 segundos
+                            }, 3000);
+                        } else {
+                            alert('La URL no está disponible.');
+                        }
+                    });
+                    document.getElementById('external-url').value = ''; // Limpiar el campo
+                    document.getElementById('category-select').value = ''; // Limpiar la categoría
+                } else {
+                    alert('Por favor, complete todos los campos.');
+                }
+            });
+        });
+
+        document.getElementById('file-upload').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+                    const channelsContainer = document.getElementById('channels-container');
+                    channelsContainer.innerHTML = '';
+
+                    lines.forEach(function (line) {
+                        if (line.startsWith('http')) {
+                            checkIfUrlIsOnline(line.trim(), function(isOnline) {
+                                if (isOnline) {
+                                    const channelName = 'Canal ' + (channelsContainer.children.length + 1);
+                                    const category = document.getElementById('category-select').value; // Usar el menú desplegable
+                                    const channelDiv = document.createElement('div');
+                                    channelDiv.className = 'channel';
+                                    channelDiv.innerHTML = `
+                                        <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${channelName}" onclick="playVideo('${line.trim()}', '${channelName}')">
+                                        <p>${channelName} <span class="favorite" onclick="toggleFavorite(event, '${channelName}', '${line.trim()}', '${category}')">★</span></p>
+                                    `;
+                                    channelsContainer.appendChild(channelDiv);
+                                }
+                            });
+                        }
+                    });
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function checkIfUrlIsOnline(url, callback) {
+            fetch(url, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        callback(true);
+                    } else {
+                        // Si HEAD no funciona, intenta con GET
+                        return fetch(url)
+                            .then(response => callback(response.ok))
+                            .catch(() => callback(false));
+                    }
+                })
+                .catch(() => callback(false));
+        }
+
+        function toggleFavorite(event, channelName, url, category) {
+            const star = event.target;
+            star.classList.toggle('favorited');
+            star.textContent = star.classList.contains('favorited') ? '★' : '☆';
+
+            if (star.classList.contains('favorited')) {
+                const favorite = { name: channelName, url: url, category: category };
+                favorites.push(favorite);
+                localStorage.setItem('favorites', JSON.stringify(favorites));
+                updateFavoritesList();
+            } else {
+                const index = favorites.findIndex(fav => fav.url === url);
+                if (index !== -1) {
+                    favorites.splice(index, 1);
+                    localStorage.setItem('favorites', JSON.stringify(favorites));
+                    updateFavoritesList();
+                }
+            }
+        }
+
+        function loadFavorites() {
+            favorites.forEach(fav => {
+                const favoriteDiv = document.createElement('div');
+                favoriteDiv.className = 'channel';
+                favoriteDiv.innerHTML = `
+                    <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${fav.name}" onclick="playVideo('${fav.url}', '${fav.name}')">
+                    <p>${fav.name}</p>
+                `;
+                document.getElementById('favorites-list').appendChild(favoriteDiv);
+            });
+        }
+
+        function updateFavoritesList() {
+            const favoritesList = document.getElementById('favorites-list');
+            favoritesList.innerHTML = '';
+
+            favorites.forEach(fav => {
+                const favoriteDiv = document.createElement('div');
+                favoriteDiv.className = 'channel';
+                favoriteDiv.innerHTML = `
+                    <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${fav.name}" onclick="playVideo('${fav.url}', '${fav.name}')">
+                    <p>${fav.name}</p>
+                `;
+                favoritesList.appendChild(favoriteDiv);
+            });
+        }
+
+        function toggleFavorites() {
+            const favoritesList = document.getElementById('favorites-list');
+            favoritesList.style.display = favoritesList.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function playVideo(videoURL, channelName) {
+            const videoPlayer = document.getElementById('video-player');
+            const videoElement = document.getElementById('video');
+            const channelNameElement = document.getElementById('channel-name');
+
+            // Configurar el nombre del canal y la fuente del video
+            channelNameElement.textContent = channelName;
+            videoElement.src = videoURL;
+
+            // Mostrar el reproductor de video
+            videoPlayer.style.display = 'block';
+
+            // Crear el reproductor de MediaElement.js
+            new MediaElement(videoElement, {
+                success: function (mediaElement) {
+                    mediaElement.play();
+                }
+            });
+        }
+
+        function closeVideo() {
+            const videoPlayer = document.getElementById('video-player');
+            const videoElement = document.getElementById('video');
+
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.setSrc('');
+                videoElement.load();
+                videoPlayer.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

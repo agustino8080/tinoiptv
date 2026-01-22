@@ -34,13 +34,18 @@
             margin-bottom: 20px;
         }
         .channels {
+            max-height: 400px; /* Altura máxima del contenedor */
+            overflow-y: auto; /* Barra de desplazamiento vertical */
+            border: 1px solid #444; /* Borde del contenedor */
+            border-radius: 10px; /* Esquinas redondeadas */
+            padding: 10px; /* Espaciado interno */
+            background-color: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente */
             display: flex;
-            flex-wrap: wrap;
-            justify-content: space-around;
-            gap: 20px;
+            flex-direction: column;
+            gap: 10px;
         }
         .channel {
-            flex: 1 1 20%;
+            flex: 1 1 auto;
             max-width: 200px;
             text-align: center;
             background-color: #333;
@@ -121,11 +126,6 @@
             padding: 10px;
             border-radius: 5px;
         }
-        .category-select {
-            width: 100%;
-            padding: 5px;
-            margin-top: 10px;
-        }
         .status-message {
             color: lime;
             text-align: center;
@@ -146,18 +146,9 @@
         </div>
 
         <div class="external-url-container">
-            <input type="text" id="external-url" placeholder="Agregar URL externa" />
-            <select id="category-select" class="category-select">
-                <option value="">Seleccione una categoría</option>
-                <option value="país">País</option>
-                <option value="deporte">Deporte</option>
-                <option value="vod">VOD</option>
-                <option value="series">Series</option>
-                <option value="noticias">Noticias</option>
-                <option value="entretenimiento">Entretenimiento</option>
-            </select>
+            <input type="text" id="external-url" placeholder="Agregar URL de lista M3U" />
             <button id="add-url-button">Agregar URL</button>
-            <div class="status-message" id="status-message">Página insertada</div>
+            <div class="status-message" id="status-message">Canales cargados</div>
         </div>
 
         <div class="channels" id="channels-container"></div>
@@ -191,83 +182,94 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.16/mediaelement-and-player.min.js"></script>
     <script>
         const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+        let channelsByCategory = {};
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Configura el año dinámico
             document.getElementById('year').textContent = new Date().getFullYear();
-
-            // Contador de visitantes (ejemplo simple, en producción usar un servicio real)
             let visitorCount = localStorage.getItem('visitorCount') || 0;
             visitorCount++;
             localStorage.setItem('visitorCount', visitorCount);
             document.getElementById('visitor-counter').innerHTML = '<p>Visitantes: ' + visitorCount + '</p>';
-
-            // Cargar favoritos desde el almacenamiento local
             loadFavorites();
 
-            // Lógica para agregar URL externa
             document.getElementById('add-url-button').addEventListener('click', function () {
                 const url = document.getElementById('external-url').value;
-                const category = document.getElementById('category-select').value;
-
-                if (url && category) {
+                if (url) {
                     checkIfUrlIsOnline(url, function(isOnline) {
                         if (isOnline) {
-                            const channelName = 'Canal Externo ' + (document.getElementById('channels-container').children.length + 1);
-                            const channelDiv = document.createElement('div');
-                            channelDiv.className = 'channel';
-                            channelDiv.innerHTML = `
-                                <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${channelName}" onclick="playVideo('${url.trim()}', '${channelName}')">
-                                <p>${channelName} <span class="favorite" onclick="toggleFavorite(event, '${channelName}', '${url}', '${category}')">★</span></p>
-                            `;
-                            document.getElementById('channels-container').appendChild(channelDiv);
-                            document.getElementById('status-message').style.display = 'block'; // Mostrar mensaje
-                            setTimeout(() => {
-                                document.getElementById('status-message').style.display = 'none'; // Ocultar mensaje después de 3 segundos
-                            }, 3000);
+                            fetch(url)
+                                .then(response => response.text())
+                                .then(data => {
+                                    parseM3U(data);
+                                })
+                                .catch(error => {
+                                    alert('Error al cargar la lista: ' + error);
+                                });
                         } else {
                             alert('La URL no está disponible.');
                         }
                     });
                     document.getElementById('external-url').value = ''; // Limpiar el campo
-                    document.getElementById('category-select').value = ''; // Limpiar la categoría
                 } else {
                     alert('Por favor, complete todos los campos.');
                 }
             });
+
+            document.getElementById('file-upload').addEventListener('change', function (event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const content = e.target.result;
+                        parseM3U(content);
+                    };
+                    reader.readAsText(file);
+                }
+            });
         });
 
-        document.getElementById('file-upload').addEventListener('change', function (event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const content = e.target.result;
-                    const lines = content.split('\n');
-                    const channelsContainer = document.getElementById('channels-container');
-                    channelsContainer.innerHTML = '';
+        function parseM3U(data) {
+            const lines = data.split('\n');
+            const channelsContainer = document.getElementById('channels-container');
+            channelsContainer.innerHTML = '';
+            channelsByCategory = {}; // Resetear grupos
+            let currentCategory = '';
 
-                    lines.forEach(function (line) {
-                        if (line.startsWith('http')) {
-                            checkIfUrlIsOnline(line.trim(), function(isOnline) {
-                                if (isOnline) {
-                                    const channelName = 'Canal ' + (channelsContainer.children.length + 1);
-                                    const category = document.getElementById('category-select').value; // Usar el menú desplegable
-                                    const channelDiv = document.createElement('div');
-                                    channelDiv.className = 'channel';
-                                    channelDiv.innerHTML = `
-                                        <img src="ruta_a_tu_imagen_de_canal_default.png" alt="${channelName}" onclick="playVideo('${line.trim()}', '${channelName}')">
-                                        <p>${channelName} <span class="favorite" onclick="toggleFavorite(event, '${channelName}', '${line.trim()}', '${category}')">★</span></p>
-                                    `;
-                                    channelsContainer.appendChild(channelDiv);
-                                }
-                            });
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.startsWith('#EXTINF:')) {
+                    const parts = line.split(',');
+                    const channelInfo = parts[1].trim().split(' '); // Separar nombre y logo
+                    const channelName = channelInfo[0]; // Nombre del canal
+                    const logo = channelInfo.slice(1).join(' '); // Logo del canal (puede contener espacios)
+
+                    // Extraer la URL de la siguiente línea
+                    if (i + 1 < lines.length && lines[i + 1].startsWith('http')) {
+                        const url = lines[i + 1].trim();
+
+                        // Crear el div del canal
+                        const channelDiv = document.createElement('div');
+                        channelDiv.className = 'channel';
+                        channelDiv.innerHTML = `
+                            <img src="${logo || 'ruta_a_tu_imagen_de_canal_default.png'}" alt="${channelName}" onclick="playVideo('${url}', '${channelName}')">
+                            <p>${channelName} <span class="favorite" onclick="toggleFavorite(event, '${channelName}', '${url}', '${currentCategory}');">★</span></p>
+                        `;
+
+                        // Agrupar canales por categoría
+                        if (!channelsByCategory[currentCategory]) {
+                            channelsByCategory[currentCategory] = [];
                         }
-                    });
-                };
-                reader.readAsText(file);
+                        channelsByCategory[currentCategory].push(channelDiv);
+                    }
+                } else if (line.startsWith('#EXTGRP:')) {
+                    // Extraer la categoría del grupo
+                    currentCategory = line.split(':')[1].trim(); // Obtener la categoría
+                }
             }
-        });
+
+            // Actualizar la visualización de los canales por grupo
+            updateChannelsDisplay();
+        }
 
         function checkIfUrlIsOnline(url, callback) {
             fetch(url, { method: 'HEAD' })
@@ -331,6 +333,23 @@
             });
         }
 
+        function updateChannelsDisplay() {
+            const channelsContainer = document.getElementById('channels-container');
+            channelsContainer.innerHTML = ''; // Limpiar contenedor
+
+            Object.keys(channelsByCategory).forEach(category => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'group';
+                groupDiv.innerHTML = `<h3>${category.charAt(0).toUpperCase() + category.slice(1) || 'Otros'}</h3>`; // Capitalizar la primera letra o mostrar 'Otros'
+
+                channelsByCategory[category].forEach(channelDiv => {
+                    groupDiv.appendChild(channelDiv);
+                });
+
+                channelsContainer.appendChild(groupDiv);
+            });
+        }
+
         function toggleFavorites() {
             const favoritesList = document.getElementById('favorites-list');
             favoritesList.style.display = favoritesList.style.display === 'none' ? 'flex' : 'none';
@@ -370,3 +389,4 @@
     </script>
 </body>
 </html>
+
